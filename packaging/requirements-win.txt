@@ -1,0 +1,8 @@
+# Windows runtime dependencies for the installer (Python 3.13, 64-bit). Pinned so every build is the same.
+torch==2.15.0
+numpy==2.5.4
+gymnasium==1.4.0
+cloudpickle==3.1.2
+psutil==7.2.2
+winrt-runtime==4.1.0
+winrt-Windows.Media.Control==4!10.0.28000.2957

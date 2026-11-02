@@ -1,0 +1,123 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  trainer-test:
+    name: Trainer test (Linux)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install (CPU PyTorch)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.15.0 --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install numpy==2.5.4 gymnasium==1.4.0 cloudpickle==3.1.2 psutil==7.2.2
+          python -m pip install --no-deps stable-baselines3==2.9.2
+      - name: Real training run
+        env:
+          WORKERS: "2,1"
+          SECS: "75"
+        run: python tests/test_trainer_run.py
+
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Tools
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pynsist==2.8
+          if (-not (Get-Command makensis -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+      - name: Build the installer
+        run: python packaging/build_installer.py
+      - name: Install silently (per-user, no admin)
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem dist\*-setup.exe | Select-Object -First 1
+          "Installer: $($exe.Name) $([math]::Round($exe.Length/1MB)) MB" | Tee-Object -FilePath dist\size.txt
+          $p = Start-Process $exe.FullName -ArgumentList '/S', "/D=$env:RUNNER_TEMP\SnekBrainApp" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer exit code $($p.ExitCode)" }
+          foreach ($f in 'SnekBrain.launch.pyw', 'Python\pythonw.exe', 'Python\msvcp140.dll', 'pkgs\snekbrain\web\index.html', 'pkgs\torch\lib\torch_cpu.dll', 'uninstall.exe') {
+            if (-not (Test-Path "$env:RUNNER_TEMP\SnekBrainApp\$f")) { throw "missing after install: $f" }
+          }
+          if (-not (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Terrelbytes SnekBrain.lnk")) { throw "no Start menu shortcut" }
+      - name: Smoke test the installed app (real training)
+        shell: pwsh
+        env:
+          SNEKBRAIN_HOME: ${{ runner.temp }}\sbhome
+        run: |
+          $app = "$env:RUNNER_TEMP\SnekBrainApp"
+          & "$app\Python\python.exe" -c "import torch, stable_baselines3, gymnasium, numpy, psutil, snekbrain.winsys as w; print('torch', torch.__version__, 'video check:', w.video_playing('youtube', False))"
+          if ($LASTEXITCODE -ne 0) { throw "imports failed" }
+          & "$app\Python\python.exe" tests\smoke_installed.py --launcher "$app\SnekBrain.launch.pyw" --python "$app\Python\pythonw.exe" --secs 600 --report dist\smoke-report.json
+          if ($LASTEXITCODE -ne 0) { throw "smoke test failed" }
+      - name: Edge screenshots
+        shell: pwsh
+        env:
+          SNEKBRAIN_HOME: ${{ runner.temp }}\sbhome
+        run: |
+          $app = "$env:RUNNER_TEMP\SnekBrainApp"
+          & "$app\Python\python.exe" packaging\ci_screenshots.py --python "$app\Python\pythonw.exe" --launcher "$app\SnekBrain.launch.pyw" --out dist\screenshots
+      - name: Uninstall silently
+        shell: pwsh
+        run: |
+          $app = "$env:RUNNER_TEMP\SnekBrainApp"
+          Start-Process "$app\uninstall.exe" -ArgumentList '/S' -Wait
+          Start-Sleep -Seconds 15
+          if (Test-Path "$app\pkgs") { throw "uninstall left the app files" }
+          if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Terrelbytes SnekBrain.lnk") { throw "uninstall left the shortcut" }
+          "uninstall ok"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SnekBrain-windows
+          path: dist/
+          if-no-files-found: warn
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [trainer-test, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: SnekBrain-windows
+          path: dist
+      - name: Release notes from the changelog
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v v="$ver" '$0 ~ "^## "v {f=1; next} /^## / && f {exit} f' CHANGELOG.md > notes.md
+          printf '\n---\nWindows 10/11, 64-bit. Windows may say "Windows protected your PC" because the installer is not code-signed: choose More info, then Run anyway. Check the download against SHA256SUMS.txt if you like.\n' >> notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/*-setup.exe dist/SHA256SUMS.txt \
+            --title "Terrelbytes SnekBrain ${GITHUB_REF_NAME#v}" --notes-file notes.md

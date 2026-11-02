@@ -1,0 +1,4 @@
+# Installed without its dependencies: at runtime it only needs torch, numpy, gymnasium and cloudpickle
+# (above). Its pandas and matplotlib requirements are only for its plotting helpers, which SnekBrain
+# never uses, and would add about 100 MB.
+stable-baselines3==2.9.2

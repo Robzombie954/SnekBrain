@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "snekbrain"
+dynamic = ["version"]
+description = "Terrelbytes SnekBrain: watch an AI learn to play a snake arena game, live, on your own PC"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Terrelbytes AI Solutions" }]
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=2.0",
+    "torch>=2.4",
+    "gymnasium>=1.0",
+    "cloudpickle>=3.0",
+    "psutil>=6.0",
+    # stable-baselines3 is installed with --no-deps: it only needs the four packages above at runtime,
+    # and its pandas/matplotlib dependencies would add about 100 MB to the installer for nothing.
+    "winrt-runtime>=4.0; sys_platform == 'win32'",
+    "winrt-Windows.Media.Control; sys_platform == 'win32'",
+]
+
+[project.scripts]
+snekbrain = "snekbrain.app:main"
+snekbrain-mcp = "snekbrain.mcp_server:main"
+
+[tool.setuptools]
+packages = ["snekbrain"]
+
+[tool.setuptools.dynamic]
+version = { attr = "snekbrain.__version__" }
+
+[tool.setuptools.package-data]
+snekbrain = ["web/*", "starter/**/*"]

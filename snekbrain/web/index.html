@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Terrelbytes SnekBrain</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<script>window.SL_TOKEN = "__SL_TOKEN__";</script>
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand">
+      <img src="icon.svg" alt="" class="logo">
+      <div><div class="name">SnekBrain</div><div class="sub">by Terrelbytes</div></div>
+    </div>
+    <div class="brainpick">
+      <label for="brainSelect">Brain</label>
+      <select id="brainSelect" title="Which brain is training and playing"></select>
+    </div>
+    <div id="statePill" class="pill">Starting…</div>
+    <button id="btnTrain" class="primary">Start training</button>
+    <div class="seg" id="modeSeg" title="Normal stays in the background. Turbo learns faster.">
+      <button data-mode="normal">Normal</button><button data-mode="turbo">Turbo</button>
+    </div>
+    <div class="spacer"></div>
+    <nav>
+      <button data-open="brains">Brains</button>
+      <button data-open="hall">Hall of Fame</button>
+      <button data-open="settings">Settings</button>
+      <button data-open="about" title="What is this?">?</button>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section id="stage">
+      <div id="views" class="tabs">
+        <button data-view="live" class="on" title="The newest brain plays in real time">Watch it play</button>
+        <button data-view="compare" title="Generation 0 next to the newest brain">Before / after</button>
+        <button data-view="inside" title="One of the games it is learning from right now">Inside training</button>
+        <button data-view="play" title="You play against the AI">Play against it</button>
+        <button data-view="tournament" title="Saved brains play each other">Tournament</button>
+        <button data-view="highlights" title="Its best moments, saved by itself">Highlights</button>
+      </div>
+      <div id="canvasWrap">
+        <canvas id="cv"></canvas>
+        <div id="hud">
+          <div id="genBadge" class="badge">Gen 0</div>
+          <div id="viewNote" class="note"></div>
+        </div>
+        <div id="flash" class="flash"></div>
+        <div id="banner" class="banner"></div>
+        <div id="playHelp" class="overlayHelp hidden">Steer with the mouse (or ← →). Hold the mouse button (or ↑ / space) to boost.</div>
+        <div id="tourPanel" class="floatPanel hidden"></div>
+        <div id="hlPanel" class="floatPanel hidden"></div>
+        <div id="streamStats" class="hidden"></div>
+      </div>
+      <div id="controls">
+        <div class="seg" id="speedSeg" title="How fast the game on screen runs (training speed is separate)">
+          <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button>
+          <button data-speed="4">4×</button><button data-speed="8">8×</button><button data-speed="64">Max</button>
+        </div>
+        <label class="chk" title="Shows the 16 directions the snake senses: green = food, red = danger"><input type="checkbox" id="chkSenses" checked> Show what it senses</label>
+        <label class="chk"><input type="checkbox" id="chkFollow" checked> Follow the leader</label>
+        <div class="spacer"></div>
+        <button id="btnClip" title="Records the screen until you press again">● Record clip</button>
+        <button id="btnTimelapse" title="Plays saved generations from first to newest and records it">Timelapse video</button>
+        <button id="btnScreensaver" title="Fullscreen, no buttons. Press Esc to leave.">Screensaver</button>
+        <button id="btnStream" title="A clean layout for live streams">Stream layout</button>
+      </div>
+    </section>
+
+    <aside id="side">
+      <div class="card">
+        <h3>What's happening</h3>
+        <div id="happening" class="happening"></div>
+      </div>
+      <div class="card">
+        <h3>Getting better? <span class="hint" id="chartHint"></span></h3>
+        <canvas id="chart" height="150"></canvas>
+        <div class="chartKey"><span class="k1">average length</span> <span class="k2">score (reward)</span> <span class="k3">★ record</span></div>
+      </div>
+      <div class="card">
+        <h3>Its brain right now</h3>
+        <canvas id="senses" width="300" height="150"></canvas>
+        <div id="actions" class="actions"></div>
+      </div>
+      <div class="card">
+        <h3>Recent events</h3>
+        <ul id="events" class="events"></ul>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="sheet">
+    <button class="close" id="modalClose" title="Close">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+<a id="dl" class="hidden"></a>
+<input type="file" id="fileIn" class="hidden" accept=".snekbrain,.slbrain,.zip">
+
+<script src="arena.js"></script>
+<script src="game.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

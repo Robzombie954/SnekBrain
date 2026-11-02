@@ -1,0 +1,13 @@
+{
+ "longest_ever": 426,
+ "recent_len": [
+  115.3,
+  98.9,
+  102.9
+ ],
+ "best_len": 133.0,
+ "best_return": 37.403,
+ "since_improve": 18,
+ "stage": 4,
+ "boosting": true
+}
