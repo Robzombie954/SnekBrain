@@ -81,14 +81,39 @@ jobs:
         run: |
           $app = "$env:RUNNER_TEMP\SnekBrainApp"
           & "$app\Python\python.exe" packaging\ci_screenshots.py --python "$app\Python\pythonw.exe" --launcher "$app\SnekBrain.launch.pyw" --out dist\screenshots
+      - name: Demo clip (real Edge window)
+        shell: pwsh
+        env:
+          SNEKBRAIN_HOME: ${{ runner.temp }}\sbhome
+        run: |
+          $app = "$env:RUNNER_TEMP\SnekBrainApp"
+          $ff = (Get-Command ffmpeg -ErrorAction SilentlyContinue).Source
+          if (-not $ff) { choco install ffmpeg -y --no-progress; $ff = "$env:ProgramData\chocolatey\bin\ffmpeg.exe" }
+          & "$app\Python\python.exe" packaging\ci_clip.py --python "$app\Python\pythonw.exe" --launcher "$app\SnekBrain.launch.pyw" --ffmpeg $ff --out dist\SnekBrain-demo.mp4
+          if ($LASTEXITCODE -ne 0) { throw "clip failed" }
+      - name: Print screenshots and clip into the log (for review)
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem dist\screenshots\*.png) + @(Get-Item dist\SnekBrain-demo.mp4 -ErrorAction SilentlyContinue)
+          foreach ($f in $files) {
+            if (-not $f) { continue }
+            $b = [Convert]::ToBase64String([IO.File]::ReadAllBytes($f.FullName))
+            for ($i = 0; $i -lt $b.Length; $i += 8000) { "MEDIA $($f.Name) $($b.Substring($i, [math]::Min(8000, $b.Length - $i)))" }
+          }
       - name: Uninstall silently
         shell: pwsh
         run: |
           $app = "$env:RUNNER_TEMP\SnekBrainApp"
-          Start-Process "$app\uninstall.exe" -ArgumentList '/S' -Wait
-          Start-Sleep -Seconds 15
-          if (Test-Path "$app\pkgs") { throw "uninstall left the app files" }
-          if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Terrelbytes SnekBrain.lnk") { throw "uninstall left the shortcut" }
+          # NSIS uninstallers copy themselves to %TEMP% and return at once; _?= runs it in place so -Wait really waits
+          $p = Start-Process "$app\uninstall.exe" -ArgumentList '/S', "_?=$app" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "uninstaller exit code $($p.ExitCode)" }
+          foreach ($f in 'pkgs', 'Python', 'SnekBrain.launch.pyw', 'snekbrain.ico') {
+            if (Test-Path "$app\$f") { Get-ChildItem $app | Format-Table Name; throw "uninstall left $f" }
+          }
+          if (Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Terrelbytes SnekBrain.lnk") { throw "uninstall left the Start menu shortcut" }
+          if (Test-Path "$env:USERPROFILE\Desktop\Terrelbytes SnekBrain.lnk") { throw "uninstall left the desktop shortcut" }
+          if (Test-Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\TerrelbytesSnekBrain") { throw "uninstall left the Apps entry" }
+          if (-not (Test-Path "$env:LOCALAPPDATA\SnekBrain")) { "note: no data folder to keep in this run" }
           "uninstall ok"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -119,5 +144,5 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/*-setup.exe dist/SHA256SUMS.txt \
+          gh release create "$GITHUB_REF_NAME" dist/*-setup.exe dist/SHA256SUMS.txt dist/SnekBrain-demo.mp4 \
             --title "Terrelbytes SnekBrain ${GITHUB_REF_NAME#v}" --notes-file notes.md
