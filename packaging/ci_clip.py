@@ -58,6 +58,7 @@ def main():
     r = subprocess.run(cmd, check=False, timeout=a.secs + 120)
     if r.returncode != 0 or not out.exists():  # window title not found: record the screen instead
         cmd[cmd.index("title=Terrelbytes SnekBrain")] = "desktop"
+        cmd[cmd.index("scale=960:-2")] = "crop=1024:740:0:0,scale=960:-2"  # just the window, not the taskbar
         subprocess.run(cmd, check=False, timeout=a.secs + 120)
     win.terminate()
     subprocess.run(["taskkill", "/F", "/T", "/PID", str(win.pid)], check=False, capture_output=True)

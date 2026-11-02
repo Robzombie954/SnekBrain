@@ -70,6 +70,11 @@
     const { agents, bots } = showcaseCounts(), seed = (Date.now() & 0xffff) + 1;
     const mk = (b) => new SB.Match(st.world, Array.from({ length: agents }, (_, i) => ({ k: "a", c: i, brain: b })), bots, seed);
     st.match = mk(st.gen0); st.matchB = mk(st.liveBrain);
+    const half = (R.cv.width / R.dpr) / 2; // start both cameras on their snake instead of drifting in from the middle
+    for (const [m, cam] of [[st.match, st.cam], [st.matchB, st.camB]]) {
+      const s = m.arena.snakes[m.leader()];
+      if (s && s.alive) { cam.aim(s.body[0][0], s.body[0][1], s.body.length, half, m.arena.wrap ? m.arena.S : 0); cam.snap(); }
+    }
   }
   function newPlay() {
     if (!st.world) return;
@@ -136,9 +141,14 @@
     cam.update(dt, A.wrap ? A.S : 0);
     const view = m.frame(-1, 0);
     R.draw(view, cam, rect, { senses: $("#chkSenses").checked && st.view !== "play" ? m.senses() : null, labels: st.view === "tournament" || st.view === "play" });
-    if (label) {
-      const c = R.ctx; c.font = `600 ${14 * R.dpr}px Segoe UI`; c.fillStyle = "rgba(230,237,247,.9)"; c.textAlign = "center";
-      c.fillText(label, rect[0] + rect[2] / 2, rect[1] + 26 * R.dpr);
+    if (label) { // below the view's note in the corner, on a dark pill so it reads over the game
+      const c = R.ctx, d = R.dpr, x = rect[0] + rect[2] / 2, y = rect[1] + 62 * d;
+      c.font = `600 ${14 * d}px Segoe UI`; c.textAlign = "center"; c.textBaseline = "middle";
+      const w = c.measureText(label).width + 24 * d;
+      c.fillStyle = "rgba(11,16,26,.82)"; c.beginPath();
+      if (c.roundRect) c.roundRect(x - w / 2, y - 14 * d, w, 28 * d, 14 * d); else c.rect(x - w / 2, y - 14 * d, w, 28 * d);
+      c.fill();
+      c.fillStyle = "rgba(230,237,247,.95)"; c.fillText(label, x, y + 1 * d); c.textBaseline = "alphabetic";
     }
   }
   function drawInside(dt, W, H) {
