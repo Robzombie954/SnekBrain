@@ -10,10 +10,13 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
-from ci_screenshots import api, data_dir, edge  # same folder
+# the app's embedded Python (a ._pth file) doesn't put the script's folder on sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from ci_screenshots import api, data_dir, edge  # noqa: E402
 
 
 def main():
